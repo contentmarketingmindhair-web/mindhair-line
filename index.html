@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MindHair Pro</title>
+<style>
+  :root { --green:#06c755; --text:#1f2328; --muted:#6b7280; --bg:#ffffff; }
+  @media (prefers-color-scheme: dark) { :root { --text:#f3f4f6; --muted:#9ca3af; --bg:#111315; } }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    font-family:-apple-system,"Noto Sans Thai",sans-serif; text-align:center; padding:0 16px;
+    background:var(--bg); color:var(--text); }
+  .b { max-width:360px; }
+  p { color:var(--muted); line-height:1.6; }
+  a.btn { display:inline-block; margin-top:12px; padding:14px 28px; border-radius:999px; background:var(--green);
+    color:#fff; font-weight:600; text-decoration:none; font-size:17px; }
+  a.alt { background:transparent; color:var(--green); border:2px solid var(--green); }
+  .spin { width:28px; height:28px; margin:8px auto; border:3px solid #d1d5db; border-top-color:var(--green);
+    border-radius:50%; animation:s .8s linear infinite; }
+  @keyframes s { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="b">
+  <h2>MindHair Pro</h2>
+  <div id="wait"><div class="spin"></div><p>กำลังพาไปที่แชท MindHair Pro…</p></div>
+  <div id="go" hidden><p>แตะปุ่มด้านล่างเพื่อเข้าแชทรับโปรค่ะ</p><a class="btn" id="goBtn" href="#">เข้าแชท MindHair Pro</a></div>
+  <div id="out" hidden>
+    <p>แตะปุ่มด้านล่างเพื่อเปิดแอป LINE และทักแชทรับโปรจาก MindHair Pro</p>
+    <a class="btn" id="appBtn" href="#">เปิดแอป LINE</a>
+    <p style="margin-top:28px;font-size:14px">เปิดแอป LINE ไม่ได้?</p>
+    <a class="btn alt" id="msgBtn" href="#">ทักแชทเลย</a>
+  </div>
+</div>
+<script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<script>
+  // หน้า LIFF ของลิงก์ TikTok — ในแอป LINE อ่านโปรไฟล์ได้เองโดยไม่ต้องล็อกอิน
+  // ส่งให้ Apps Script บันทึกในชีต clicks แล้วพาเข้าหน้า OA ทันที
+  var LIFF_ID = '2012672044-R2wRfI01';
+  var EXEC = 'https://script.google.com/macros/s/AKfycbxJ7lO4mqCXI8QEKudH-K3aF7IukRO_4hDouFM2TwKrPBmy9HRWj7L6lJabEAcTUE5T/exec';
+  var OA = '@mindhair_pro';
+  var OA_URL = 'https://line.me/R/ti/p/' + encodeURIComponent(OA);
+  var MSG_URL = 'https://line.me/R/oaMessage/' + encodeURIComponent(OA) + '/?' +
+    encodeURIComponent('สวัสดีค่ะ เห็นโปรจาก TikTok สนใจค่ะ');
+
+  function getSrc() {
+    var q = new URLSearchParams(location.search);
+    var s = q.get('src');
+    if (!s && q.get('liff.state')) s = new URLSearchParams(q.get('liff.state').replace(/^[^?]*\?/, '')).get('src');
+    return (String(s || 'tiktok').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40)) || 'tiktok';
+  }
+  function show(id) { ['wait', 'go', 'out'].forEach(function (k) { document.getElementById(k).hidden = (k !== id); }); }
+  function goOa() { location.href = OA_URL; setTimeout(function () { show('go'); }, 2500); }
+
+  document.getElementById('goBtn').href = OA_URL;
+  document.getElementById('msgBtn').href = MSG_URL;
+
+  var src = getSrc();
+  liff.init({ liffId: LIFF_ID }).then(function () {
+    if (!liff.isInClient()) {           // เปิดจากเบราว์เซอร์อื่น (เช่นในแอป TikTok) → ให้เปิดแอป LINE
+      document.getElementById('appBtn').href = 'https://line.me/R/app/' + LIFF_ID + '?src=' + encodeURIComponent(src);
+      show('out');
+      return;
+    }
+    var token = liff.getAccessToken();
+    var sent = fetch(EXEC, {
+      method: 'POST', mode: 'no-cors', keepalive: true,
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ type: 'liffClick', accessToken: token, src: src })
+    }).catch(function () {});
+    var timeout = new Promise(function (r) { setTimeout(r, 2500); });
+    Promise.race([sent, timeout]).then(goOa);
+  }).catch(function () {
+    document.getElementById('appBtn').href = 'https://line.me/R/app/' + LIFF_ID + '?src=' + encodeURIComponent(src);
+    show('out');
+  });
+</script>
+</body>
+</html>
