@@ -49,6 +49,19 @@
     if (!s && q.get('liff.state')) s = new URLSearchParams(q.get('liff.state').replace(/^[^?]*\?/, '')).get('src');
     return (String(s || 'tiktok').toLowerCase().replace(/[^a-z0-9_\-]/g, '').slice(0, 40)) || 'tiktok';
   }
+  // นับคนเข้าหน้า/แตะปุ่ม ลงแท็บ visits (ไม่รู้ตัวตน แค่นับแยกตาม src)
+  var SID = Math.random().toString(36).slice(2, 10);
+  var UA = navigator.userAgent || '';
+  var DEVICE = /iPhone|iPad|iPod/.test(UA) ? 'iPhone' : /Android/.test(UA) ? 'Android' : 'อื่นๆ';
+  var APP = /musical_ly|Bytedance|TikTok|trill/i.test(UA) ? 'TikTok' : / Line\//.test(UA) ? 'LINE' :
+    /FBAN|FBAV|Instagram/.test(UA) ? 'Facebook/IG' : 'เบราว์เซอร์';
+  function track(step) {
+    try {
+      fetch(EXEC, { method: 'POST', mode: 'no-cors', keepalive: true,
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({ type: 'visit', src: src, step: step, device: DEVICE, app: APP, sid: SID }) }).catch(function () {});
+    } catch (e) {}
+  }
   function show(id) { ['wait', 'go', 'out'].forEach(function (k) { document.getElementById(k).hidden = (k !== id); }); }
   function goOa() { location.href = OA_URL; setTimeout(function () { show('go'); }, 2500); }
 
@@ -56,12 +69,17 @@
   document.getElementById('msgBtn').href = MSG_URL;
 
   var src = getSrc();
+  track('เปิดหน้า');
+  document.getElementById('appBtn').addEventListener('click', function () { track('แตะเปิดแอป LINE'); });
+  document.getElementById('msgBtn').addEventListener('click', function () { track('แตะทักแชทเลย'); });
+  document.getElementById('goBtn').addEventListener('click', function () { track('แตะเข้าแชท'); });
   liff.init({ liffId: LIFF_ID }).then(function () {
     if (!liff.isInClient()) {           // เปิดจากเบราว์เซอร์อื่น (เช่นในแอป TikTok) → ให้เปิดแอป LINE
       document.getElementById('appBtn').href = 'https://line.me/R/app/' + LIFF_ID + '?src=' + encodeURIComponent(src);
       show('out');
       return;
     }
+    track('เข้าแอป LINE แล้ว');
     var token = liff.getAccessToken();
     var sent = fetch(EXEC, {
       method: 'POST', mode: 'no-cors', keepalive: true,
@@ -71,6 +89,7 @@
     var timeout = new Promise(function (r) { setTimeout(r, 2500); });
     Promise.race([sent, timeout]).then(goOa);
   }).catch(function () {
+    track('liff error');
     document.getElementById('appBtn').href = 'https://line.me/R/app/' + LIFF_ID + '?src=' + encodeURIComponent(src);
     show('out');
   });
